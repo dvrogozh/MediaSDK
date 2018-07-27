@@ -144,92 +144,21 @@ mfxStatus MFXVideoVPP_QueryIOSurf(mfxSession session, mfxVideoParam *par, mfxFra
 
 mfxStatus MFXVideoVPP_Init(mfxSession session, mfxVideoParam *par)
 {
-    mfxStatus mfxRes = MFX_ERR_UNSUPPORTED;
-    MFX_AUTO_LTRACE_FUNC(MFX_TRACE_LEVEL_API);
-    MFX_LTRACE_BUFFER(MFX_TRACE_LEVEL_PARAMS, par);
-
-    try
-    {
-        // check existence of component
-        if (!session->m_pVPP.get())
-        {
-            // create a new instance
-            session->m_pVPP.reset(session->Create<VideoVPP>(*par));
-#ifdef MFX_ENABLE_VPP
-            MFX_CHECK(session->m_pENCODE.get(), MFX_ERR_INVALID_VIDEO_PARAM);
-#else
-            MFX_CHECK(session->m_pENCODE.get(), MFX_ERR_UNSUPPORTED);
-#endif
-        }
-
-        // create a new instance
-        mfxRes = session->m_pVPP->Init(par);
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-        else if (0 == session->m_pVPP.get())
-        {
-            mfxRes = MFX_ERR_INVALID_VIDEO_PARAM;
-        }
-        else if (0 == par)
-        {
-            mfxRes = MFX_ERR_NULL_PTR;
-        }
-    }
-
-    MFX_LTRACE_I(MFX_TRACE_LEVEL_PARAMS, mfxRes);
-    return mfxRes;
-
-} // mfxStatus MFXVideoVPP_Init(mfxSession session, mfxVideoParam *par)
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Init<VideoVPP>(par);
+}
 
 mfxStatus MFXVideoVPP_Close(mfxSession session)
 {
-    mfxStatus mfxRes;
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Close<VideoVPP>();
+}
 
-    MFX_AUTO_LTRACE_FUNC(MFX_TRACE_LEVEL_API);
-
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(session->m_pScheduler, MFX_ERR_NOT_INITIALIZED);
-
-    try
-    {
-        if (!session->m_pVPP.get())
-        {
-            return MFX_ERR_NOT_INITIALIZED;
-        }
-
-        // wait until all tasks are processed
-        session->m_pScheduler->WaitForTaskCompletion(session->m_pVPP.get());
-
-        mfxRes = session->m_pVPP->Close();
-        // delete the codec's instance if not plugin
-        if (!session->m_plgVPP.get())
-        {
-            session->m_pVPP.reset((VideoVPP *) 0);
-        }
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-    }
-
-    MFX_LTRACE_I(MFX_TRACE_LEVEL_PARAMS, mfxRes);
-    return mfxRes;
-
-} // mfxStatus MFXVideoVPP_Close(mfxSession session)
+mfxStatus MFXVideoVPP_Reset(mfxSession session, mfxVideoParam *par)
+{
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Reset<VideoVPP>(par);
+}
 
 static
 mfxStatus MFXVideoVPPLegacyRoutine(void *pState, void *pParam,
@@ -572,8 +501,6 @@ mfxStatus MFXVideoVPP_RunFrameVPPAsyncEx(mfxSession session, mfxFrameSurface1 *i
 //
 // THE OTHER VPP FUNCTIONS HAVE IMPLICIT IMPLEMENTATION
 //
-
-FUNCTION_RESET_IMPL(VPP, Reset, (mfxSession session, mfxVideoParam *par), (par))
 
 FUNCTION_IMPL(VPP, GetVideoParam, (mfxSession session, mfxVideoParam *par), (par))
 FUNCTION_IMPL(VPP, GetVPPStat, (mfxSession session, mfxVPPStat *stat), (stat))

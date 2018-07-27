@@ -135,74 +135,21 @@ mfxStatus MFXVideoPAK_QueryIOSurf(mfxSession session, mfxVideoParam *par, mfxFra
 
 mfxStatus MFXVideoPAK_Init(mfxSession session, mfxVideoParam *par)
 {
-    mfxStatus mfxRes;
-
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(par, MFX_ERR_NULL_PTR);
-    try
-    {
-        // create a new instance
-        session->m_pPAK.reset(session->Create<VideoPAK>(*par));
-        MFX_CHECK(session->m_pPAK.get(), MFX_ERR_INVALID_VIDEO_PARAM);
-        mfxRes = session->m_pPAK->Init(par);
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-        else if (0 == session->m_pPAK.get())
-        {
-            mfxRes = MFX_ERR_INVALID_VIDEO_PARAM;
-        }
-        else if (0 == par)
-        {
-            mfxRes = MFX_ERR_NULL_PTR;
-        }
-    }
-
-    return mfxRes;
-
-} // mfxStatus MFXVideoPAK_Init(mfxSession session, mfxVideoParam *par)
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Init<VideoPAK>(par);
+}
 
 mfxStatus MFXVideoPAK_Close(mfxSession session)
 {
-    mfxStatus mfxRes;
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Close<VideoPAK>();
+}
 
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-
-    try
-    {
-        if (!session->m_pPAK.get())
-        {
-            return MFX_ERR_NOT_INITIALIZED;
-        }
-
-        // wait until all tasks are processed
-        session->m_pScheduler->WaitForTaskCompletion(session->m_pPAK.get());
-
-        mfxRes = session->m_pPAK->Close();
-        // delete the codec's instance
-        session->m_pPAK.reset((VideoPAK *) 0);
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-    }
-
-    return mfxRes;
-
-} // mfxStatus MFXVideoPAK_Close(mfxSession session)
+mfxStatus MFXVideoPAK_Reset(mfxSession session, mfxVideoParam *par)
+{
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Reset<VideoPAK>(par);
+}
 
 enum
 {
@@ -320,8 +267,6 @@ mfxStatus MFXVideoPAK_ProcessFrameAsync(mfxSession session , mfxPAKInput *in, mf
 //
 // THE OTHER PAK FUNCTIONS HAVE IMPLICIT IMPLEMENTATION
 //
-
-FUNCTION_RESET_IMPL(PAK, Reset, (mfxSession session, mfxVideoParam *par), (par))
 
 FUNCTION_IMPL(PAK, GetVideoParam, (mfxSession session, mfxVideoParam *par), (par))
 FUNCTION_IMPL(PAK, GetFrameParam, (mfxSession session, mfxFrameParam *par), (par))

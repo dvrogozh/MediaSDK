@@ -416,68 +416,21 @@ mfxStatus MFXVideoDECODE_DecodeHeader(mfxSession session, mfxBitstream *bs, mfxV
 
 mfxStatus MFXVideoDECODE_Init(mfxSession session, mfxVideoParam *par)
 {
-    mfxStatus mfxRes;
-    MFX_CHECK(par, MFX_ERR_NULL_PTR);
-
-    MFX_AUTO_LTRACE_FUNC(MFX_TRACE_LEVEL_API);
-    MFX_LTRACE_BUFFER(MFX_TRACE_LEVEL_API, par);
-
-        // check existence of component
-        if (!session->m_pDECODE.get())
-        {
-            // create a new instance
-            session->m_pDECODE.reset(session->Create<VideoDECODE>(*par));
-            MFX_CHECK(session->m_pDECODE.get(), MFX_ERR_INVALID_VIDEO_PARAM);
-        }
-
-    mfxRes = session->m_pDECODE->Init(par);
-
-    MFX_LTRACE_I(MFX_TRACE_LEVEL_API, mfxRes);
-    return mfxRes;
-
-} // mfxStatus MFXVideoDECODE_Init(mfxSession session, mfxVideoParam *par)
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Init<VideoDECODE>(par);
+}
 
 mfxStatus MFXVideoDECODE_Close(mfxSession session)
 {
-    mfxStatus mfxRes = MFX_ERR_NONE;
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Close<VideoDECODE>();
+}
 
-    MFX_AUTO_LTRACE_FUNC(MFX_TRACE_LEVEL_API);
-
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(session->m_pScheduler, MFX_ERR_NOT_INITIALIZED);
-
-    try
-    {
-        if (!session->m_pDECODE.get())
-        {
-            return MFX_ERR_NOT_INITIALIZED;
-        }
-
-        // wait until all tasks are processed
-        session->m_pScheduler->WaitForTaskCompletion(session->m_pDECODE.get());
-
-        mfxRes = session->m_pDECODE->Close();
-        // delete the codec's instance if not plugin
-        if (!session->m_plgDec.get())
-        {
-            session->m_pDECODE.reset((VideoDECODE *) 0);
-        }
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-    }
-
-    MFX_LTRACE_I(MFX_TRACE_LEVEL_API, mfxRes);
-    return mfxRes;
-
-} // mfxStatus MFXVideoDECODE_Close(mfxSession session)
+mfxStatus MFXVideoDECODE_Reset(mfxSession session, mfxVideoParam *par)
+{
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Reset<VideoDECODE>(par);
+}
 
 mfxStatus MFXVideoDECODE_DecodeFrameAsync(mfxSession session, mfxBitstream *bs, mfxFrameSurface1 *surface_work, mfxFrameSurface1 **surface_out, mfxSyncPoint *syncp)
 {
@@ -606,8 +559,6 @@ mfxStatus MFXVideoDECODE_DecodeFrameAsync(mfxSession session, mfxBitstream *bs, 
 //
 // THE OTHER DECODE FUNCTIONS HAVE IMPLICIT IMPLEMENTATION
 //
-
-FUNCTION_RESET_IMPL(DECODE, Reset, (mfxSession session, mfxVideoParam *par), (par))
 
 FUNCTION_IMPL(DECODE, GetVideoParam, (mfxSession session, mfxVideoParam *par), (par))
 FUNCTION_IMPL(DECODE, GetDecodeStat, (mfxSession session, mfxDecodeStat *stat), (stat))

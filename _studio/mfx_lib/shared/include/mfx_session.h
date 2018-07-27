@@ -160,8 +160,23 @@ struct _mfxSession
         return (NULL == m_pSchedulerAllocated);
     }
     
+    template <class T>
+    inline std::unique_ptr<T>* codec();
+
+    template <class T>
+    inline std::unique_ptr<VideoCodecUSER>* plugin();
+
     template<class T>
     T* Create(mfxVideoParam& par);
+
+    template<class T>
+    inline mfxStatus Init(mfxVideoParam *par);
+
+    template<class T>
+    inline mfxStatus Close();
+
+    template<class T>
+    inline mfxStatus Reset(mfxVideoParam *par);
 
 protected:
     // Release the object
@@ -175,6 +190,66 @@ private:
     // Assignment operator is forbidden
     _mfxSession & operator = (const _mfxSession &);
 };
+
+template<>
+inline std::unique_ptr<VideoDECODE>* _mfxSession::codec<VideoDECODE>()
+{
+    return &m_pDECODE;
+}
+
+template<>
+inline std::unique_ptr<VideoCodecUSER>* _mfxSession::plugin<VideoDECODE>()
+{
+    return &m_plgDec;
+}
+
+template<>
+inline std::unique_ptr<VideoENCODE>* _mfxSession::codec<VideoENCODE>()
+{
+    return &m_pENCODE;
+}
+
+template<>
+inline std::unique_ptr<VideoCodecUSER>* _mfxSession::plugin<VideoENCODE>()
+{
+    return &m_plgEnc;
+}
+
+template<>
+inline std::unique_ptr<VideoVPP>* _mfxSession::codec<VideoVPP>()
+{
+    return &m_pVPP;
+}
+
+template<>
+inline std::unique_ptr<VideoCodecUSER>* _mfxSession::plugin<VideoVPP>()
+{
+    return &m_plgVPP;
+}
+
+template<>
+inline std::unique_ptr<VideoENC>* _mfxSession::codec<VideoENC>()
+{
+    return &m_pENC;
+}
+
+template<>
+inline std::unique_ptr<VideoCodecUSER>* _mfxSession::plugin<VideoENC>()
+{
+    return nullptr;
+}
+
+template<>
+inline std::unique_ptr<VideoPAK>* _mfxSession::codec<VideoPAK>()
+{
+    return &m_pPAK;
+}
+
+template<>
+inline std::unique_ptr<VideoCodecUSER>* _mfxSession::plugin<VideoPAK>()
+{
+    return nullptr;
+}
 
 #if defined(LINUX64)
   static_assert(sizeof(_mfxSession) == 440, "size_of_session_is_fixed");
@@ -253,6 +328,123 @@ protected:
     mfxU16 m_externalThreads;
 };
 
+
+template <class T>
+inline const char* getInitApiName();
+
+template <class T>
+inline const char* getCloseApiName();
+
+#define API_INIT_FUNCTION_NAME(C) \
+    template <> \
+    inline const char* getInitApiName<C>() { return "MFX" #C "_Init"; }
+
+API_INIT_FUNCTION_NAME(VideoDECODE);
+API_INIT_FUNCTION_NAME(VideoENCODE);
+API_INIT_FUNCTION_NAME(VideoVPP);
+API_INIT_FUNCTION_NAME(VideoENC);
+API_INIT_FUNCTION_NAME(VideoPAK);
+#undef API_INIT_FUNCTION_NAME
+
+template<class T>
+inline mfxStatus _mfxSession::Init(mfxVideoParam *par)
+{
+    MFX_AUTO_LTRACE(MFX_TRACE_LEVEL_API, getInitApiName<T>());
+    MFX_LTRACE_BUFFER(MFX_TRACE_LEVEL_API, par);
+
+    MFX_CHECK(par, MFX_ERR_NULL_PTR);
+
+    try
+    {
+        std::unique_ptr<T>* component = codec<T>();
+
+        MFX_CHECK(component, MFX_ERR_INVALID_HANDLE);
+
+        // check existence of component
+        if (!component->get())
+        {
+            // create a new instance
+            component->reset(Create<T>(*par));
+        }
+        MFX_CHECK(component->get(), MFX_ERR_INVALID_VIDEO_PARAM);
+
+        mfxStatus mfxRes = (*component)->Init(par);
+        MFX_LTRACE_I(MFX_TRACE_LEVEL_API, mfxRes);
+        return mfxRes;
+    }
+    catch(MFX_CORE_CATCH_TYPE)
+    {
+        return MFX_ERR_UNKNOWN;
+    }
+}
+
+#define API_CLOSE_FUNCTION_NAME(C) \
+    template <> \
+    inline const char* getCloseApiName<C>() { return "MFX" #C "_Close"; }
+
+API_CLOSE_FUNCTION_NAME(VideoDECODE);
+API_CLOSE_FUNCTION_NAME(VideoENCODE);
+API_CLOSE_FUNCTION_NAME(VideoVPP);
+API_CLOSE_FUNCTION_NAME(VideoENC);
+API_CLOSE_FUNCTION_NAME(VideoPAK);
+#undef API_CLOSE_FUNCTION_NAME
+
+template<class T>
+inline mfxStatus _mfxSession::Close()
+{
+    MFX_AUTO_LTRACE(MFX_TRACE_LEVEL_API, getCloseApiName<T>());
+
+    MFX_CHECK(m_pScheduler, MFX_ERR_NOT_INITIALIZED);
+
+    try
+    {
+        std::unique_ptr<T>* component = codec<T>();
+
+        MFX_CHECK(component, MFX_ERR_INVALID_HANDLE);
+        MFX_CHECK(component->get(), MFX_ERR_NOT_INITIALIZED);
+
+        // wait until all tasks are processed
+        m_pScheduler->WaitForTaskCompletion(component->get());
+
+        mfxStatus mfxRes = (*component)->Close();
+        MFX_LTRACE_I(MFX_TRACE_LEVEL_API, mfxRes);
+
+        // delete the codec's instance if not plugin
+        if (!plugin<T>() || !plugin<T>()->get())
+        {
+            component->reset(nullptr);
+        }
+        return mfxRes;
+    }
+    catch(MFX_CORE_CATCH_TYPE)
+    {
+        return MFX_ERR_UNKNOWN;
+    }
+}
+
+template<class T>
+inline mfxStatus _mfxSession::Reset(mfxVideoParam *par)
+{
+    MFX_CHECK(m_pScheduler, MFX_ERR_NOT_INITIALIZED);
+
+    try
+    {
+        std::unique_ptr<T>* component = codec<T>();
+
+        MFX_CHECK(component, MFX_ERR_INVALID_HANDLE);
+        MFX_CHECK(component->get(), MFX_ERR_NOT_INITIALIZED);
+
+        /* wait until all tasks are processed */
+        m_pScheduler->WaitForTaskCompletion(component->get());
+        /* call the codec's method */
+        mfxStatus mfxRes = (*component)->Reset(par);
+        return mfxRes;
+    }
+    catch(MFX_CORE_CATCH_TYPE)
+    {
+        return MFX_ERR_UNKNOWN;
+    }
+}
 
 //
 // DEFINES FOR IMPLICIT FUNCTIONS IMPLEMENTATION
@@ -334,89 +526,7 @@ check the pointer to avoid extra exceptions */ \
     return mfxRes; \
 }
 
-
-#undef FUNCTION_RESET_IMPL
-#define FUNCTION_RESET_IMPL(component, func_name, formal_param_list, actual_param_list) \
-mfxStatus MFXVideo##component##_##func_name formal_param_list \
-{ \
-    mfxStatus mfxRes; \
-    try \
-    { \
-        if (0 == session) \
-        { \
-            mfxRes = MFX_ERR_INVALID_HANDLE; \
-        } \
-        /* the absent components caused many issues in application. \
-        check the pointer to avoid extra exceptions */ \
-        else if (0 == session->m_p##component.get()) \
-        { \
-            mfxRes = MFX_ERR_NOT_INITIALIZED; \
-        } \
-        else \
-        { \
-            /* wait until all tasks are processed */ \
-            session->m_pScheduler->WaitForTaskCompletion(session->m_p##component.get()); \
-            /* call the codec's method */ \
-            mfxRes = session->m_p##component->func_name actual_param_list; \
-        } \
-    } \
-    /* handle error(s) */ \
-    catch(MFX_CORE_CATCH_TYPE) \
-    { \
-        /* set the default error value */ \
-        mfxRes = MFX_ERR_NULL_PTR; \
-        if (0 == session) \
-        { \
-            mfxRes = MFX_ERR_INVALID_HANDLE; \
-        } \
-        else if (0 == session->m_p##component.get()) \
-        { \
-            mfxRes = MFX_ERR_NOT_INITIALIZED; \
-        } \
-    } \
-    return mfxRes; \
-}
-
-#undef FUNCTION_AUDIO_RESET_IMPL
-#define FUNCTION_AUDIO_RESET_IMPL(component, func_name, formal_param_list, actual_param_list) \
-    mfxStatus MFXAudio##component##_##func_name formal_param_list \
-{ \
-    mfxStatus mfxRes; \
-    try \
-    { \
-    /* the absent components caused many issues in application. \
-check the pointer to avoid extra exceptions */ \
-    if (0 == session->m_pAudio##component.get()) \
-        { \
-        mfxRes = MFX_ERR_NOT_INITIALIZED; \
-} \
-        else \
-        { \
-        /* wait until all tasks are processed */ \
-        session->m_pScheduler->WaitForTaskCompletion(session->m_pAudio##component.get()); \
-        /* call the codec's method */ \
-        mfxRes = session->m_pAudio##component->func_name actual_param_list; \
-} \
-} \
-    /* handle error(s) */ \
-    catch(MFX_CORE_CATCH_TYPE) \
-    { \
-    /* set the default error value */ \
-    mfxRes = MFX_ERR_NULL_PTR; \
-    if (0 == session) \
-        { \
-        mfxRes = MFX_ERR_INVALID_HANDLE; \
-} \
-        else if (0 == session->m_pAudio##component.get()) \
-        { \
-        mfxRes = MFX_ERR_NOT_INITIALIZED; \
-} \
-} \
-    return mfxRes; \
-}
-
 mfxStatus MFXInternalPseudoJoinSession(mfxSession session, mfxSession child_session);
 mfxStatus MFXInternalPseudoDisjoinSession(mfxSession session);
 
 #endif // _MFX_SESSION_H
-

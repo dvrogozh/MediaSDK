@@ -192,80 +192,21 @@ mfxStatus MFXVideoENC_QueryIOSurf(mfxSession session, mfxVideoParam *par, mfxFra
 
 mfxStatus MFXVideoENC_Init(mfxSession session, mfxVideoParam *par)
 {
-    mfxStatus mfxRes;
-
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(par, MFX_ERR_NULL_PTR);
-    try
-    {
-        // check existence of component
-        if (!session->m_pENC.get())
-        {
-            // create a new instance
-            session->m_pENC.reset(session->Create<VideoENC>(*par));
-            MFX_CHECK(session->m_pENC.get(), MFX_ERR_INVALID_VIDEO_PARAM);
-        }
-
-        mfxRes = session->m_pENC->Init(par);
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-        else if (0 == session->m_pENC.get())
-        {
-            mfxRes = MFX_ERR_INVALID_VIDEO_PARAM;
-        }
-        else if (0 == par)
-        {
-            mfxRes = MFX_ERR_NULL_PTR;
-        }
-    }
-
-    return mfxRes;
-
-} // mfxStatus MFXVideoENC_Init(mfxSession session, mfxVideoParam *par)
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Init<VideoENC>(par);
+}
 
 mfxStatus MFXVideoENC_Close(mfxSession session)
 {
-    mfxStatus mfxRes;
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Close<VideoENC>();
+}
 
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(session->m_pScheduler, MFX_ERR_NOT_INITIALIZED);
-
-    try
-    {
-        if (!session->m_pENC.get())
-        {
-            return MFX_ERR_NOT_INITIALIZED;
-        }
-
-        // wait until all tasks are processed
-        session->m_pScheduler->WaitForTaskCompletion(session->m_pENC.get());
-
-        mfxRes = session->m_pENC->Close();
-        // delete the codec's instance
-        session->m_pENC.reset((VideoENC *) 0);
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-    }
-
-    return mfxRes;
-
-} // mfxStatus MFXVideoENC_Close(mfxSession session)
+mfxStatus MFXVideoENC_Reset(mfxSession session, mfxVideoParam *par)
+{
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Reset<VideoENC>(par);
+}
 
 static
 mfxStatus MFXVideoENCLegacyRoutineExt(void *pState, void *pParam,
@@ -431,8 +372,6 @@ mfxStatus  MFXVideoENC_ProcessFrameAsync(mfxSession session, mfxENCInput *in, mf
 //
 // THE OTHER ENC FUNCTIONS HAVE IMPLICIT IMPLEMENTATION
 //
-
-FUNCTION_RESET_IMPL(ENC, Reset, (mfxSession session, mfxVideoParam *par), (par))
 
 FUNCTION_IMPL(ENC, GetVideoParam, (mfxSession session, mfxVideoParam *par), (par))
 FUNCTION_IMPL(ENC, GetFrameParam, (mfxSession session, mfxFrameParam *par), (par))

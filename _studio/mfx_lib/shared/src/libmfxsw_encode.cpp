@@ -378,92 +378,21 @@ mfxStatus MFXVideoENCODE_QueryIOSurf(mfxSession session, mfxVideoParam *par, mfx
 
 mfxStatus MFXVideoENCODE_Init(mfxSession session, mfxVideoParam *par)
 {
-    mfxStatus mfxRes;
-
-    MFX_AUTO_LTRACE_FUNC(MFX_TRACE_LEVEL_API);
-    MFX_LTRACE_BUFFER(MFX_TRACE_LEVEL_API, par);
-
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(par, MFX_ERR_NULL_PTR);
-
-    try
-    {
-
-        // check existence of component
-        if (!session->m_pENCODE.get())
-        {
-            // create a new instance
-            session->m_pENCODE.reset(session->Create<VideoENCODE>(*par));
-            MFX_CHECK(session->m_pENCODE.get(), MFX_ERR_INVALID_VIDEO_PARAM);
-        }
-
-        mfxRes = session->m_pENCODE->Init(par);
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-        else if (0 == session->m_pENCODE.get())
-        {
-            mfxRes = MFX_ERR_INVALID_VIDEO_PARAM;
-        }
-        else if (0 == par)
-        {
-            mfxRes = MFX_ERR_NULL_PTR;
-        }
-    }
-
-    MFX_LTRACE_I(MFX_TRACE_LEVEL_API, mfxRes);
-    return mfxRes;
-
-} // mfxStatus MFXVideoENCODE_Init(mfxSession session, mfxVideoParam *par)
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Init<VideoENCODE>(par);
+}
 
 mfxStatus MFXVideoENCODE_Close(mfxSession session)
 {
-    mfxStatus mfxRes = MFX_ERR_NONE;
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Close<VideoENCODE>();
+}
 
-    MFX_AUTO_LTRACE_FUNC(MFX_TRACE_LEVEL_API);
-
-    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE);
-    MFX_CHECK(session->m_pScheduler, MFX_ERR_NOT_INITIALIZED);
-
-    try
-    {
-        if (!session->m_pENCODE.get())
-        {
-            return MFX_ERR_NOT_INITIALIZED;
-        }
-
-        // wait until all tasks are processed
-        session->m_pScheduler->WaitForTaskCompletion(session->m_pENCODE.get());
-
-        mfxRes = session->m_pENCODE->Close();
-        // delete the codec's instance if not plugin
-        if (!session->m_plgEnc.get())
-        {
-            session->m_pENCODE.reset((VideoENCODE *) 0);
-        }
-    }
-    // handle error(s)
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        // set the default error value
-        mfxRes = MFX_ERR_UNKNOWN;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-    }
-
-    MFX_LTRACE_I(MFX_TRACE_LEVEL_API, mfxRes);
-    return mfxRes;
-
-} // mfxStatus MFXVideoENCODE_Close(mfxSession session)
+mfxStatus MFXVideoENCODE_Reset(mfxSession session, mfxVideoParam *par)
+{
+    MFX_CHECK(session, MFX_ERR_INVALID_HANDLE)
+    return session->Reset<VideoENCODE>(par);
+}
 
 static
 mfxStatus MFXVideoENCODELegacyRoutine(void *pState, void *pParam,
@@ -686,43 +615,6 @@ mfxStatus MFXVideoENCODE_EncodeFrameAsync(mfxSession session, mfxEncodeCtrl *ctr
 //
 // THE OTHER ENCODE FUNCTIONS HAVE IMPLICIT IMPLEMENTATION
 //
-
-mfxStatus MFXVideoENCODE_Reset(mfxSession session, mfxVideoParam *par)
-{
-    mfxStatus mfxRes;
-    try
-    {
-        /* the absent components caused many issues in application.
-        check the pointer to avoid extra exceptions */
-        if (0 == session->m_pENCODE.get())
-        {
-            mfxRes = MFX_ERR_NOT_INITIALIZED;
-        }
-        else
-        {
-            /* wait until all tasks are processed */
-            session->m_pScheduler->WaitForTaskCompletion(session->m_pENCODE.get());
-            /* call the codec's method */
-            mfxRes = session->m_pENCODE->Reset(par);
-        }
-    }
-    /* handle error(s) */
-    catch(MFX_CORE_CATCH_TYPE)
-    {
-        /* set the default error value */
-        mfxRes = MFX_ERR_NULL_PTR;
-        if (0 == session)
-        {
-            mfxRes = MFX_ERR_INVALID_HANDLE;
-        }
-        else if (0 == session->m_pENCODE.get())
-        {
-            mfxRes = MFX_ERR_NOT_INITIALIZED;
-        }
-    }
-    return mfxRes;
-
-} // mfxStatus MFXVideoENCODE_Reset(mfxSession session, mfxVideoParam *par)
 
 FUNCTION_IMPL(ENCODE, GetVideoParam, (mfxSession session, mfxVideoParam *par), (par))
 FUNCTION_IMPL(ENCODE, GetEncodeStat, (mfxSession session, mfxEncodeStat *stat), (stat))
