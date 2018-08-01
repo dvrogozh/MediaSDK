@@ -64,7 +64,15 @@ append("-std=c++11" CMAKE_CXX_FLAGS)
     append("-m${T_ARCH}" CMAKE_CXX_FLAGS)
   endif()
 
-if(ENABLE_KERNELS)
-  append("-DMFX_ENABLE_KERNELS" CMAKE_C_FLAGS)
-  append("-DMFX_ENABLE_KERNELS" CMAKE_CXX_FLAGS)
+option( MFX_ENABLE_H264_VIDEO_DECODE "Enabled H264 decoder?" ON)
+option( MFX_ENABLE_H265_VIDEO_DECODE "Enabled H265 decoder?" ON)
+#...
+
+if (DEFINED MFX_CONFIG_FILE)
+  # Include user provided cmake config file of the format:
+  # set( VARIABLE VALUE )
+  include(${MFX_CONFIG_FILE})
 endif()
+
+configure_file(mfxconfig.h.in mfxconfig.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})

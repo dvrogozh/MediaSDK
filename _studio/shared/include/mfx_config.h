@@ -22,6 +22,7 @@
 #define _MFX_CONFIG_H_
 
 #include "mfxdefs.h"
+#include "mfxconfig.h"
 
 #define CMAPIUPDATE
 #define MFX_ENABLE_VPP_COMPOSITION
@@ -51,8 +52,6 @@
 #if !defined(LINUX_TARGET_PLATFORM) || defined(LINUX_TARGET_PLATFORM_BDW) || defined(LINUX_TARGET_PLATFORM_CFL) || defined(LINUX_TARGET_PLATFORM_BXT)
     #if !defined(ANDROID)
         // HW decoders are part of library
-        #define MFX_ENABLE_H264_VIDEO_DECODE
-        #define MFX_ENABLE_H265_VIDEO_DECODE
         #define MFX_ENABLE_VP8_VIDEO_DECODE_HW
         #define MFX_ENABLE_VP9_VIDEO_DECODE_HW
         
