@@ -63,3 +63,8 @@ append("-std=c++11" CMAKE_CXX_FLAGS)
   else()
     append("-m${T_ARCH}" CMAKE_CXX_FLAGS)
   endif()
+
+if(ENABLE_KERNELS)
+  append("-DMFX_ENABLE_KERNELS" CMAKE_C_FLAGS)
+  append("-DMFX_ENABLE_KERNELS" CMAKE_CXX_FLAGS)
+endif()
