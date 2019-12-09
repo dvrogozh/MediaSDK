@@ -39,6 +39,7 @@
 
 #include <sys/ioctl.h>
 
+#include "i915_pciids.h"
 #include "va/va.h"
 #include <va/va_backend.h>
 
@@ -56,12 +57,41 @@ typedef struct drm_i915_getparam {
 #define DRM_IOWR(nr,type)       _IOWR(DRM_IOCTL_BASE,nr,type)
 #define DRM_IOCTL_I915_GETPARAM         DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GETPARAM, drm_i915_getparam_t)
 
-typedef struct {
-    int device_id;
+struct mfx_device_info {
     eMFXHWType platform;
     eMFXGTConfig config;
-} mfx_device_item;
+};
 
+struct mfx_device_item {
+    int device_id;
+    mfx_device_info info;
+};
+
+enum {
+    EHL_GT2,
+    TGLLP_GT2,
+    NUM_DEVICES
+};
+
+static mfx_device_info devices_info[NUM_DEVICES] = {
+  /*.EHL_GT2 =*/ {MFX_HW_EHL, MFX_GT2 },
+  /*.TGLLP_GT2 =*/ {MFX_HW_TGL_LP, MFX_GT2 }
+};
+
+#undef INTEL_VGA_DEVICE
+#define INTEL_VGA_DEVICE(dev_id, mfx_idx) { dev_id, mfx_idx }
+
+struct mfx_devices {
+    uint16_t dev_id;
+    size_t mfx_idx;
+};
+
+static mfx_devices devices[] = {
+  INTEL_EHL_IDS(EHL_GT2),
+  INTEL_TGL_12_IDS(TGLLP_GT2),
+};
+
+#if 0
 // list of legal dev ID for Intel's graphics
  const mfx_device_item listLegalDevIDs[] = {
     /*IVB*/
@@ -339,17 +369,8 @@ typedef struct {
     { 0x4551, MFX_HW_EHL, MFX_GT2 },
     { 0x4569, MFX_HW_EHL, MFX_GT2 },
     { 0x4571, MFX_HW_EHL, MFX_GT2 },
-
-    /* TGL */
-    { 0x9A40, MFX_HW_TGL_LP, MFX_GT2 },
-    { 0x9A49, MFX_HW_TGL_LP, MFX_GT2 },
-    { 0x9A59, MFX_HW_TGL_LP, MFX_GT2 },
-    { 0x9A60, MFX_HW_TGL_LP, MFX_GT2 },
-    { 0x9A68, MFX_HW_TGL_LP, MFX_GT2 },
-    { 0x9A70, MFX_HW_TGL_LP, MFX_GT2 },
-    { 0x9A78, MFX_HW_TGL_LP, MFX_GT2 },
-
 };
+#endif
 
 /* END: IOCTLs definitions */
 
@@ -366,7 +387,6 @@ static
 mfx_device_item getDeviceItem(VADisplay pVaDisplay)
 {
     /* This is value by default */
-    mfx_device_item retDeviceItem = { 0x0000, MFX_HW_UNKNOWN, MFX_GT_UNKNOWN };
     int fd = 0, i = 0, listSize = 0;
     int devID = 0;
     int ret = 0;
@@ -388,19 +408,18 @@ mfx_device_item getDeviceItem(VADisplay pVaDisplay)
     ret = ioctl(fd, DRM_IOCTL_I915_GETPARAM, &gp);
     if (!ret)
     {
-        listSize = (sizeof(listLegalDevIDs) / sizeof(mfx_device_item));
-        for (i = 0; i < listSize; ++i)
+        for (size_t i = 0; i < sizeof(devices)/sizeof(devices[0]); ++i)
         {
-            if (listLegalDevIDs[i].device_id == devID)
+            if (devices[i].dev_id == devID)
             {
-                retDeviceItem = listLegalDevIDs[i];
-                break;
+                auto idx = devices[i].mfx_idx;
+                return { devID, { devices_info[idx].platform, devices_info[idx].config } };
             }
         }
     }
 
-    return retDeviceItem;
-} // eMFXHWType getDeviceItem (VADisplay pVaDisplay)
+    return { 0x0000, { MFX_HW_UNKNOWN, MFX_GT_UNKNOWN } };
+}
 
 
 VAAPIVideoCORE::VAAPIVideoCORE(
@@ -514,9 +533,9 @@ VAAPIVideoCORE::SetHandle(
             * to get device ID and find out platform type
             */
             const auto devItem = getDeviceItem(m_Display);
-            MFX_CHECK_WITH_ASSERT(MFX_HW_UNKNOWN != devItem.platform, MFX_ERR_UNDEFINED_BEHAVIOR);
-            m_HWType   = devItem.platform;
-            m_GTConfig = devItem.config;
+            MFX_CHECK_WITH_ASSERT(MFX_HW_UNKNOWN != devItem.info.platform, MFX_ERR_UNDEFINED_BEHAVIOR);
+            m_HWType   = devItem.info.platform;
+            m_GTConfig = devItem.info.config;
             m_deviceId = mfxU16(devItem.device_id);
         }
         return MFX_ERR_NONE;
