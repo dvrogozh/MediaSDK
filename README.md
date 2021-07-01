@@ -9,6 +9,47 @@ Media SDK is a part of Intel software stack for graphics:
 * [Linux Graphics Drivers](https://intel.com/linux-graphics-drivers) - General Purpose GPU Drivers for Linux&ast; Operating Systems
   * Visit [documentation](https://dgpu-docs.intel.com) for instructions on installing, deploying, and updating Intel software to enable general purpose GPU (GPGPU) capabilities for Linux&ast;-based operating system distributions.
 
+# Media SDK Support Matrix
+
+Pay attention that Intel® Media SDK lifetime comes to an end in a form it
+exists right now. In particular, 
+
+* API 1.35 is projected to be the last API of 1.x API series
+* Runtime library (libmfxhw64.so.1) is not planned to get support of new Gen platforms
+* Project is going to be supported in maintainence mode, critical fixes only
+
+All future development is planned to happen within
+[oneVPL](https://github.com/oneapi-src/oneVPL) library and its runtime
+implementations which are direct successors of Intel® Media SDK. oneVPL introduces
+API 2.x series which is not backward compatible with API 1.x series (some
+features got dropped). New [VPL Runtime for Gen Graphics](https://github.com/oneapi-src/oneVPL-intel-gpu)
+(libmfx-gen.so.1) comes with the support of new Gen platforms.
+
+Pay attention that Intel® Media SDK has forward compatibility with new VPL
+runtime (libmfx-gen.so.1) in the scope of API features supported by **both** 1.x
+and 2.x API series. As such, if application is built against Intel® Media
+SDK, it still can work on new platforms. For that purpose Media SDK Dispatcher
+loads either MSDK Legacy Runtime (libmfxhw64.so.1) or VPL Runtime (libmfx-gen.so.1)
+depending on the underlying platform. See support matrix below.
+
+| Platform                               | libmfxhw64.so.1 | libmfx-gen.so.1 |
+| -------------------------------------- | --------------- | --------------- |
+| BDW (Broadwell)                        | ✔               |                 |
+| SKL (Skylake)                          | ✔               |                 |
+| BXT (Broxton) / APL (Apollo Lake)      | ✔               |                 |
+| KBLx                                   | ✔               |                 |
+| ICL (Ice Lake)                         | ✔               |                 |
+| JSL (Jasper Lake) / EHL (Elkhart Lake) | ✔               |                 |
+| TGL (Tiger Lake)                       | ✔               |                 |
+| DG1 (Xe MAX)/SG1                       | ✔               |                 |
+| RKL (Rocket Lake)                      | ✔               |                 |
+| ADL-S (Alder Lake S)                   | ✔               |                 |
+| ADL-P (Alder Lake P)                   |                 | ✔               |
+| Future platforms...                    |                 | ✔               |
+
+* KBLx is one of: KBL (Kaby Lake), CFL (Coffe Lake), WHL (Whiskey Lake), CML
+  (Comet Lake), AML (Amber Lake)
+
 # Dependencies
 Intel Media SDK depends on [LibVA](https://github.com/intel/libva/).
 This version of Intel Media SDK is compatible with the open source [Intel Media Driver for VAAPI](https://github.com/intel/media-driver).
